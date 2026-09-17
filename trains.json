@@ -29,7 +29,7 @@
       "westbound_destinations": ["Солотвино-1"],
       "scheduled_departure_bila_tserkva": "01:56",
       "scheduled_arrival_lviv": "08:48",
-      "frequency": "special schedule (check); number on delay page unverified"
+      "frequency": "special schedule (check)"
     },
     {
       "train_number": "61/62",

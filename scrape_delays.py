@@ -12,6 +12,7 @@ import csv
 import json
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -44,18 +45,46 @@ CSV_COLUMNS = [
     "reason",
 ]
 
+# Browser-like headers: the site returned HTTP 500 to a custom non-browser User-Agent.
 REQUEST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (personal train-delay tracker; polite, twice an hour at night)",
-    "Accept-Language": "uk-UA,uk;q=0.9",
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "uk-UA,uk;q=0.9,en;q=0.5",
 }
+FETCH_ATTEMPTS = 3
+SECONDS_BETWEEN_ATTEMPTS = 20
 
 
 # --------------------------------------------------------------------------- fetch & parse
 
+def save_debug_page(html: str) -> None:
+    DEBUG_PAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DEBUG_PAGE_PATH.write_text(html, encoding="utf-8")
+
+
 def fetch_page_html() -> str:
-    response = requests.get(DELAY_PAGE_URL, headers=REQUEST_HEADERS, timeout=30)
-    response.raise_for_status()
-    return response.text
+    """Fetches the page, retrying a few times; keeps the last response body for debugging."""
+    last_error_description = ""
+    for attempt_number in range(1, FETCH_ATTEMPTS + 1):
+        try:
+            response = requests.get(DELAY_PAGE_URL, headers=REQUEST_HEADERS, timeout=30)
+        except requests.RequestException as request_error:
+            last_error_description = f"request failed: {request_error}"
+            print(f"Attempt {attempt_number}/{FETCH_ATTEMPTS}: {last_error_description}", file=sys.stderr)
+        else:
+            save_debug_page(response.text)  # always keep what we got, even an error page
+            if response.status_code == 200:
+                return response.text
+            last_error_description = f"HTTP {response.status_code}, {len(response.text)} characters in body"
+            print(f"Attempt {attempt_number}/{FETCH_ATTEMPTS}: {last_error_description}", file=sys.stderr)
+
+        if attempt_number < FETCH_ATTEMPTS:
+            time.sleep(SECONDS_BETWEEN_ATTEMPTS)
+
+    raise SystemExit(f"ERROR: could not fetch {DELAY_PAGE_URL} after {FETCH_ATTEMPTS} attempts ({last_error_description})")
 
 
 def clean_text(value: str) -> str:
@@ -233,8 +262,6 @@ def main() -> int:
     watched_trains = load_watched_trains()
 
     html = fetch_page_html()
-    DEBUG_PAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DEBUG_PAGE_PATH.write_text(html, encoding="utf-8")
     print(f"Fetched {len(html)} characters, saved to {DEBUG_PAGE_PATH}")
 
     soup = BeautifulSoup(html, "lxml")
