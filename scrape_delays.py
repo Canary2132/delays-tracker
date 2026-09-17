@@ -22,6 +22,7 @@ from bs4 import BeautifulSoup
 DELAY_PAGE_URL = "https://uz-vezemo.uz.gov.ua/delayform"
 WATCHED_TRAINS_PATH = Path("trains.json")
 OUTPUT_CSV_PATH = Path("data/delays.csv")
+DEBUG_PAGE_PATH = Path("debug/last_page.html")   # what the runner actually received; uploaded on failure
 KYIV_TIMEZONE = ZoneInfo("Europe/Kyiv")
 
 CSV_COLUMNS = [
@@ -232,6 +233,10 @@ def main() -> int:
     watched_trains = load_watched_trains()
 
     html = fetch_page_html()
+    DEBUG_PAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DEBUG_PAGE_PATH.write_text(html, encoding="utf-8")
+    print(f"Fetched {len(html)} characters, saved to {DEBUG_PAGE_PATH}")
+
     soup = BeautifulSoup(html, "lxml")
 
     site_updated_at = find_site_updated_at(soup)
