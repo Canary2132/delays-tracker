@@ -43,7 +43,21 @@ CSV_COLUMNS = [
     "status",
     "forecast_reliability",
     "reason",
+    # per-station detail rows (added when the site started publishing a stop list per train)
+    "bila_tserkva_delay_minutes",
+    "bila_tserkva_forecast",
+    "bila_tserkva_scheduled",
+    "bila_tserkva_passed",
+    "lviv_delay_minutes",
+    "lviv_forecast",
+    "lviv_scheduled",
+    "lviv_passed",
 ]
+
+STATION_DETAIL_COLUMNS = {
+    "БІЛА ЦЕРКВА": "bila_tserkva",
+    "ЛЬВІВ": "lviv",
+}
 
 # Browser-like headers: the site returned HTTP 500 to a custom non-browser User-Agent.
 REQUEST_HEADERS = {
@@ -92,13 +106,14 @@ def clean_text(value: str) -> str:
 
 
 def parse_delay_to_minutes(delay_text: str) -> int | None:
-    """'+6:07' -> 367, '+0:38' -> 38. Returns None if it does not match."""
-    match = re.match(r"^\+?(\d+):(\d{2})$", delay_text)
+    """'+6:07' -> 367, '+0:38' -> 38, '-0:03' -> -3. Returns None for '—' or anything else."""
+    match = re.match(r"^([+-]?)(\d+):(\d{2})$", delay_text)
     if match is None:
         return None
-    hours = int(match.group(1))
-    minutes = int(match.group(2))
-    return hours * 60 + minutes
+    sign = -1 if match.group(1) == "-" else 1
+    hours = int(match.group(2))
+    minutes = int(match.group(3))
+    return sign * (hours * 60 + minutes)
 
 
 def split_train_number_and_date(cell_text: str) -> tuple[str, str]:
@@ -137,34 +152,74 @@ def find_delay_table(soup: BeautifulSoup):
     return None
 
 
+def empty_station_detail(column_prefix: str) -> dict:
+    return {
+        f"{column_prefix}_delay_minutes": "",
+        f"{column_prefix}_forecast": "",
+        f"{column_prefix}_scheduled": "",
+        f"{column_prefix}_passed": "",
+    }
+
+
+def parse_main_row(cell_texts: list[str]) -> dict:
+    train_number, departure_date = split_train_number_and_date(cell_texts[0])
+    origin_station, destination_station = split_route(cell_texts[1])
+    delay_minutes = parse_delay_to_minutes(cell_texts[2])
+
+    row = {
+        "train_number": train_number,
+        "departure_date": departure_date,
+        "origin_station": origin_station,
+        "destination_station": destination_station,
+        "delay_minutes": delay_minutes if delay_minutes is not None else "",
+        "forecast_arrival": cell_texts[3],
+        "scheduled_arrival": cell_texts[4],
+        "status": cell_texts[5],
+        "forecast_reliability": cell_texts[6],
+        "reason": cell_texts[7],
+    }
+    for column_prefix in STATION_DETAIL_COLUMNS.values():
+        row.update(empty_station_detail(column_prefix))
+    return row
+
+
+def add_station_detail(row: dict, cell_texts: list[str], row_classes: list[str]) -> None:
+    """
+    A detail row is one stop of the train above it:
+    [rail graphic, STATION, delay at that stop, forecast time, scheduled time, '', '', ''].
+    Only the stations we care about are kept.
+    """
+    station = cell_texts[1]
+    column_prefix = STATION_DETAIL_COLUMNS.get(station)
+    if column_prefix is None:
+        return
+    delay_minutes = parse_delay_to_minutes(cell_texts[2])
+    row[f"{column_prefix}_delay_minutes"] = delay_minutes if delay_minutes is not None else ""
+    row[f"{column_prefix}_forecast"] = cell_texts[3]
+    row[f"{column_prefix}_scheduled"] = cell_texts[4]
+    row[f"{column_prefix}_passed"] = "yes" if "delay-row__detail--passed" in row_classes else "no"
+
+
 def parse_all_delay_rows(table) -> list[dict]:
-    """Every row of the delay table, as plain dicts, before any filtering."""
+    """
+    Every train of the delay table, as plain dicts, before any filtering.
+    The table has one main row per train (class "delay-row") followed by hidden
+    detail rows, one per stop (class "delay-row__detail"), which we fold into the train.
+    """
     rows = []
     for table_row in table.find_all("tr"):
         cells = table_row.find_all("td")
         if len(cells) < 8:
             continue  # header row or something malformed
-
         cell_texts = [clean_text(cell.get_text(" ")) for cell in cells]
+        row_classes = table_row.get("class", [])
 
-        train_number, departure_date = split_train_number_and_date(cell_texts[0])
-        origin_station, destination_station = split_route(cell_texts[1])
-        delay_minutes = parse_delay_to_minutes(cell_texts[2])
+        if "delay-row__detail" in row_classes:
+            if rows:
+                add_station_detail(rows[-1], cell_texts, row_classes)
+            continue
 
-        rows.append(
-            {
-                "train_number": train_number,
-                "departure_date": departure_date,
-                "origin_station": origin_station,
-                "destination_station": destination_station,
-                "delay_minutes": delay_minutes if delay_minutes is not None else "",
-                "forecast_arrival": cell_texts[3],
-                "scheduled_arrival": cell_texts[4],
-                "status": cell_texts[5],
-                "forecast_reliability": cell_texts[6],
-                "reason": cell_texts[7],
-            }
-        )
+        rows.append(parse_main_row(cell_texts))
     return rows
 
 
@@ -176,17 +231,20 @@ def load_watched_trains() -> list[dict]:
     return config["trains"]
 
 
-def find_page_row_for_watched_train(watched_train: dict, page_rows: list[dict]) -> dict | None:
+def find_page_rows_for_watched_train(watched_train: dict, page_rows: list[dict]) -> list[dict]:
     """
     The delay page lists the same number once per direction (e.g. 41/42 Дніпро→Трускавець
     and 41/42 Трускавець→Дніпро), so match on number AND destination.
+    In the afternoon two service days of the same westbound train can be on the page at once
+    (yesterday's still running late, today's just departed), so this returns all matches.
     """
+    matching_rows = []
     for page_row in page_rows:
         same_number = page_row["train_number"] == watched_train["train_number"]
         westbound = page_row["destination_station"] in watched_train["westbound_destinations"]
         if same_number and westbound:
-            return page_row
-    return None
+            matching_rows.append(page_row)
+    return matching_rows
 
 
 def build_observation_rows(
@@ -196,12 +254,13 @@ def build_observation_rows(
     observed_at_kyiv: str,
     site_updated_at: str,
 ) -> list[dict]:
-    """One output row per watched train, whether or not it appeared on the page."""
+    """
+    At least one output row per watched train: one per matching page row when it is listed
+    (usually exactly one), or a single "not on page" row with delay 0 when it is not.
+    """
     observation_rows = []
     for watched_train in watched_trains:
-        page_row = find_page_row_for_watched_train(watched_train, page_rows)
-
-        observation = {
+        common_fields = {
             "observed_at_utc": observed_at_utc,
             "observed_at_kyiv": observed_at_kyiv,
             "site_updated_at": site_updated_at,
@@ -210,34 +269,55 @@ def build_observation_rows(
             "scheduled_arrival_lviv": watched_train["scheduled_arrival_lviv"],
         }
 
-        if page_row is None:
+        matching_page_rows = find_page_rows_for_watched_train(watched_train, page_rows)
+
+        if len(matching_page_rows) == 0:
+            observation = dict(common_fields)
             observation["on_delay_page"] = "no"
             observation["delay_minutes"] = 0
-            for column in ["departure_date", "origin_station", "destination_station",
-                           "forecast_arrival", "scheduled_arrival", "status",
-                           "forecast_reliability", "reason"]:
-                observation[column] = ""
-        else:
+            for column in CSV_COLUMNS:
+                if column not in observation:
+                    observation[column] = ""
+            observation_rows.append(observation)
+            continue
+
+        for page_row in matching_page_rows:
+            observation = dict(common_fields)
             observation["on_delay_page"] = "yes"
             observation.update(page_row)
-
-        observation_rows.append(observation)
+            observation_rows.append(observation)
     return observation_rows
 
 
 # --------------------------------------------------------------------------- output
 
 def check_existing_csv_header() -> None:
-    """Fail loudly if data/delays.csv was written with a different column set."""
+    """
+    If data/delays.csv was written with an older column set that is a prefix of the
+    current one, rewrite it once with the new columns added (empty for old rows).
+    Any other mismatch fails loudly.
+    """
     if not OUTPUT_CSV_PATH.exists():
         return
     with OUTPUT_CSV_PATH.open(encoding="utf-8", newline="") as csv_file:
-        existing_header = next(csv.reader(csv_file), [])
-    if existing_header != CSV_COLUMNS:
-        raise SystemExit(
-            f"ERROR: {OUTPUT_CSV_PATH} has columns {existing_header}, "
-            f"but the script now writes {CSV_COLUMNS}. Delete or rename the old file."
-        )
+        reader = csv.reader(csv_file)
+        existing_header = next(reader, [])
+        if existing_header == CSV_COLUMNS:
+            return
+        if CSV_COLUMNS[:len(existing_header)] != existing_header:
+            raise SystemExit(
+                f"ERROR: {OUTPUT_CSV_PATH} has columns {existing_header}, "
+                f"but the script now writes {CSV_COLUMNS}. Delete or rename the old file."
+            )
+        existing_rows = list(reader)
+
+    added_column_count = len(CSV_COLUMNS) - len(existing_header)
+    with OUTPUT_CSV_PATH.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(CSV_COLUMNS)
+        for existing_row in existing_rows:
+            writer.writerow(existing_row + [""] * added_column_count)
+    print(f"Migrated {OUTPUT_CSV_PATH}: added {added_column_count} columns to {len(existing_rows)} existing rows")
 
 
 def append_rows_to_csv(rows: list[dict]) -> None:
@@ -294,7 +374,12 @@ def main() -> int:
         f"{len(delayed_watched)} of {len(watched_trains)} watched trains delayed"
     )
     for row in delayed_watched:
-        print(f"  {row['train_number']} → {row['destination_station']}: +{row['delay_minutes']} min")
+        print(
+            f"  {row['train_number']} {row['departure_date']} → {row['destination_station']}: "
+            f"+{row['delay_minutes']} min overall, "
+            f"Біла Церква {row['bila_tserkva_delay_minutes'] or '—'} (passed: {row['bila_tserkva_passed'] or '?'}), "
+            f"Львів {row['lviv_delay_minutes'] or '—'} (passed: {row['lviv_passed'] or '?'})"
+        )
     return 0
 
 

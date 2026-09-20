@@ -1,0 +1,554 @@
+{
+ "station_from": "Біл Церква",
+ "station_to": "Львів",
+ "direct": [
+  {
+   "id": 13893717,
+   "depart_at": 1790453820,
+   "arrive_at": 1790477220,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 25357,
+    "station_from": "Дніпро-Гол",
+    "station_to": "Ужгород",
+    "number": "003П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "КЖ",
+      "name": "Жіноче купе",
+      "free_seats": 1,
+      "price": 71521,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 0,
+      "price": 71521,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": true,
+    "auto_purchase": true
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 530,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 14167285,
+   "depart_at": 1790455380,
+   "arrive_at": 1790478120,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 317,
+    "station_from": "Запоріжжя 1",
+    "station_to": "Ясіня",
+    "number": "006П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 32,
+      "price": 32897,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "КЖ",
+      "name": "Жіноче купе",
+      "free_seats": 18,
+      "price": 62019,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 10,
+      "price": 211754,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": true,
+    "auto_purchase": true
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 530,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 14167286,
+   "depart_at": 1790453820,
+   "arrive_at": 1790477220,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 13964,
+    "station_from": "Запоріжжя 1",
+    "station_to": "Перемишль",
+    "number": "032П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": false,
+    "auto_purchase": false
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 0,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 13887715,
+   "depart_at": 1790371860,
+   "arrive_at": 1790404380,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 544,
+    "station_from": "Дніпро-Гол",
+    "station_to": "Трускавець",
+    "number": "041П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 26,
+      "price": 254842,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": true,
+    "auto_purchase": true
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 594,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 14167287,
+   "depart_at": 1790455380,
+   "arrive_at": 1790478120,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 39732,
+    "station_from": "Дніпро-Гол",
+    "station_to": "Львів",
+    "number": "085П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 56,
+      "price": 23974,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 36,
+      "price": 32897,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": true,
+    "auto_purchase": true
+   },
+   "is_departed": false,
+   "with_iron_km_program": true,
+   "max_passengers_count": 4,
+   "distance": 530,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 14167288,
+   "depart_at": 1790452020,
+   "arrive_at": 1790486280,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 967,
+    "station_from": "Миколаїв",
+    "station_to": "Львів",
+    "number": "110О",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": false,
+    "auto_purchase": false
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 0,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 13893718,
+   "depart_at": 1790450880,
+   "arrive_at": 1790473800,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 10924,
+    "station_from": "Кр. Ріг-Гол",
+    "station_to": "Чернівці",
+    "number": "233П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 0,
+      "price": 0,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": false,
+    "auto_purchase": false
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 0,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 13887716,
+   "depart_at": 1790371860,
+   "arrive_at": 1790404380,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 13540,
+    "station_from": "Дніпро-Гол",
+    "station_to": "Львів",
+    "number": "285П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 12,
+      "price": 28983,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 0,
+      "price": 42610,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 15,
+      "price": 324395,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": true,
+    "auto_purchase": true
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 594,
+   "seat_hold_enabled": true
+  },
+  {
+   "id": 13893719,
+   "depart_at": 1790450880,
+   "arrive_at": 1790473800,
+   "station_from": "Біл Церква",
+   "station_to": "Львів",
+   "stations_time_offset": 0,
+   "train": {
+    "id": 28277,
+    "station_from": "Кр. Ріг-Гол",
+    "station_to": "Рахів",
+    "number": "293П",
+    "type": 0,
+    "wagon_classes": [
+     {
+      "id": "П",
+      "name": "Плацкарт",
+      "free_seats": 76,
+      "price": 26816,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places",
+       "not_side_seats"
+      ]
+     },
+     {
+      "id": "К",
+      "name": "Купе",
+      "free_seats": 37,
+      "price": 38416,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner",
+       "lower_places"
+      ]
+     },
+     {
+      "id": "Л",
+      "name": "Люкс",
+      "free_seats": 30,
+      "price": 117615,
+      "amenities": [
+       "not_near_wc",
+       "with_conditioner"
+      ]
+     }
+    ],
+    "info_popup": null
+   },
+   "discount": null,
+   "custom_tag": null,
+   "custom_tags": [],
+   "monitoring": {
+    "allowed": true,
+    "auto_purchase": true
+   },
+   "is_departed": false,
+   "with_iron_km_program": false,
+   "max_passengers_count": 4,
+   "distance": 530,
+   "seat_hold_enabled": true
+  }
+ ],
+ "with_transfer": null,
+ "monitoring": null,
+ "sale_start": null
+}

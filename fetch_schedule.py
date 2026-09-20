@@ -4,8 +4,12 @@ from the UZ booking API (the same request the booking website makes as a guest) 
 appends them to data/schedule.csv. The raw JSON for each date is also kept under
 data/schedule-raw/ so the parser can be adjusted if the API shape changes.
 
-Usage: python fetch_schedule.py            -> today and the next 2 days (Kyiv dates)
-       python fetch_schedule.py 2026-09-24 -> one specific date
+Run this from your own computer, not from GitHub Actions: the API answers datacenter
+IPs with HTTP 441 and a reCAPTCHA challenge, but a home connection is let through.
+
+Usage: python fetch_schedule.py --days 14              -> today and the next 14 Kyiv dates
+       python fetch_schedule.py 2026-09-24 2026-09-25  -> specific dates
+Then commit data/schedule.csv and data/schedule-raw/ to the repo.
 """
 
 import csv
@@ -73,6 +77,11 @@ def fetch_trips_json(schedule_date: str) -> dict | list:
         headers=build_request_headers(),
         timeout=30,
     )
+    if response.status_code == 441:
+        raise RuntimeError(
+            f"HTTP 441 for {schedule_date}: UZ wants a reCAPTCHA from this network. "
+            "Run this script from a home connection, not a server or VPN."
+        )
     if response.status_code != 200:
         raise RuntimeError(
             f"trips API returned HTTP {response.status_code} for {schedule_date}: {response.text[:300]}"
@@ -205,12 +214,22 @@ def main(arguments: list[str]) -> int:
     now_kyiv = datetime.now(timezone.utc).astimezone(KYIV_TIMEZONE)
     fetched_at_kyiv = now_kyiv.strftime("%Y-%m-%d %H:%M")
 
-    if arguments:
-        dates_to_fetch = arguments
+    days_ahead = DAYS_AHEAD_BY_DEFAULT
+    explicit_dates = []
+    remaining_arguments = list(arguments)
+    while remaining_arguments:
+        argument = remaining_arguments.pop(0)
+        if argument == "--days":
+            days_ahead = int(remaining_arguments.pop(0))
+        else:
+            explicit_dates.append(argument)
+
+    if explicit_dates:
+        dates_to_fetch = explicit_dates
     else:
         dates_to_fetch = [
             (now_kyiv + timedelta(days=offset)).strftime("%Y-%m-%d")
-            for offset in range(0, DAYS_AHEAD_BY_DEFAULT + 1)
+            for offset in range(0, days_ahead + 1)
         ]
 
     recorded_dates = already_recorded_dates()

@@ -49,15 +49,12 @@ jobs:
           git config user.name "delay-scraper-bot"
           git config user.email "delay-scraper-bot@users.noreply.github.com"
 
-      - name: Fetch which trains are scheduled (today and the next 2 days)
-        run: python fetch_schedule.py || echo "::warning::Schedule fetch failed; delay checks continue"
-
       - name: Check the delay page repeatedly, committing after each check
         run: |
           for check_number in $(seq 1 "$CHECKS_PER_JOB"); do
             echo "=== Check $check_number of $CHECKS_PER_JOB ==="
             if python scrape_delays.py; then
-              git add data/delays.csv data/schedule.csv data/schedule-raw
+              git add -A data
               if git diff --cached --quiet; then
                 echo "Nothing new to commit"
               else
