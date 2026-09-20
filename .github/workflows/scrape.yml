@@ -1,26 +1,37 @@
 name: Scrape UZ train delays
 
+# GitHub drops most cron runs when its queue is busy (we got 4-5 of 28 per night), so instead
+# of one cron entry per check we trigger only twice a night and let each job loop for ~5.5 h,
+# checking every 30 minutes and committing after every check.
+#   19:00 UTC job covers 19:00-00:30 UTC  (22:00-03:30 Kyiv summer / 21:00-02:30 winter)
+#   01:00 UTC job covers 01:00-06:30 UTC  (04:00-09:30 Kyiv summer / 03:00-08:30 winter)
+# A job may not run longer than 6 h, hence 11 checks x 30 min.
+
 on:
   schedule:
-    # Every 30 minutes from 19:00 to 08:30 UTC.
-    # Kyiv is UTC+3 in summer and UTC+2 in winter, so this window covers
-    # 22:00-11:30 Kyiv (summer) and 21:00-10:30 Kyiv (winter) - i.e. from before
-    # the first watched departure (22:28) to after the last watched arrival (09:33).
-    # Actual start may drift by 5-20 minutes; that is fine for our purpose.
-    - cron: "0,30 19-23,0-8 * * *"
-  workflow_dispatch:          # lets you press "Run workflow" manually in the Actions tab
+    - cron: "0 19 * * *"
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+    inputs:
+      checks:
+        description: "How many checks to run (30 min apart). Use 1 for a quick test."
+        default: "1"
 
 permissions:
-  contents: write             # needed so the job can commit data/delays.csv back to the repo
+  contents: write
 
 concurrency:
   group: scrape
-  cancel-in-progress: false   # if a run is late and the next one starts, queue instead of overlapping
+  cancel-in-progress: false   # a second job waits for the running one instead of overlapping
+
+env:
+  CHECKS_PER_JOB: ${{ github.event.inputs.checks || '11' }}
+  MINUTES_BETWEEN_CHECKS: 30
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 355
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -33,26 +44,39 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run scraper
-        run: python scrape_delays.py
+      - name: Configure git
+        run: |
+          git config user.name "delay-scraper-bot"
+          git config user.email "delay-scraper-bot@users.noreply.github.com"
 
-      - name: Upload fetched page for debugging (only when the scraper failed)
+      - name: Fetch which trains are scheduled (today and the next 2 days)
+        run: python fetch_schedule.py || echo "::warning::Schedule fetch failed; delay checks continue"
+
+      - name: Check the delay page repeatedly, committing after each check
+        run: |
+          for check_number in $(seq 1 "$CHECKS_PER_JOB"); do
+            echo "=== Check $check_number of $CHECKS_PER_JOB ==="
+            if python scrape_delays.py; then
+              git add data/delays.csv data/schedule.csv data/schedule-raw
+              if git diff --cached --quiet; then
+                echo "Nothing new to commit"
+              else
+                git commit -m "data: $(date -u +'%Y-%m-%d %H:%M') UTC"
+                git pull --rebase
+                git push
+              fi
+            else
+              echo "::warning::Check $check_number failed; continuing with the next one"
+            fi
+            if [ "$check_number" -lt "$CHECKS_PER_JOB" ]; then
+              sleep $((MINUTES_BETWEEN_CHECKS * 60))
+            fi
+          done
+
+      - name: Upload last fetched page for debugging (only when the job failed)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: fetched-page
           path: debug/last_page.html
           if-no-files-found: ignore
-
-      - name: Commit and push new data
-        run: |
-          git config user.name "delay-scraper-bot"
-          git config user.email "delay-scraper-bot@users.noreply.github.com"
-          git add data/delays.csv
-          if git diff --cached --quiet; then
-            echo "Nothing new to commit"
-            exit 0
-          fi
-          git commit -m "data: $(date -u +'%Y-%m-%d %H:%M') UTC"
-          git pull --rebase
-          git push
