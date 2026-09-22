@@ -1,37 +1,44 @@
 name: Scrape UZ train delays
 
-# GitHub drops most cron runs when its queue is busy (we got 4-5 of 28 per night), so instead
-# of one cron entry per check we trigger only twice a night and let each job loop for ~5.5 h,
-# checking every 30 minutes and committing after every check.
-#   19:00 UTC job covers 19:00-00:30 UTC  (22:00-03:30 Kyiv summer / 21:00-02:30 winter)
-#   01:00 UTC job covers 01:00-06:30 UTC  (04:00-09:30 Kyiv summer / 03:00-08:30 winter)
-# A job may not run longer than 6 h, hence 11 checks x 30 min.
+# Coverage window: 19:00 UTC -> 12:00 UTC next day (22:00 -> 15:00 Kyiv in summer, 21:00 -> 14:00 in winter).
+#
+# GitHub fires the cron 3.5-5 hours late on this repo (observed 20-22 Sept 2026), and one job
+# may run at most 6 hours. So instead of relying on cron for each night-time job, the cron
+# only starts a CHAIN: each link checks the page every 30 minutes until its time budget is
+# used up, then dispatches the next link itself (workflow_dispatch is not subject to the
+# cron delay). The chain stops on its own once the window end has passed.
+# The cron is set 4 hours before the window so that even a late firing lands in time.
 
 on:
   schedule:
-    - cron: "0 19 * * *"
-    - cron: "0 1 * * *"
+    - cron: "0 15 * * *"
   workflow_dispatch:
     inputs:
       checks:
-        description: "How many checks to run (30 min apart). Use 1 for a quick test."
+        description: "Checks to run, 30 min apart (ignored when chain is on)"
         default: "1"
+      chain:
+        description: "Keep the chain going until the window end (what the nightly cron does)"
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
+  contents: write   # commit data/
+  actions: write    # dispatch the next link of the chain
 
 concurrency:
   group: scrape
-  cancel-in-progress: false   # a second job waits for the running one instead of overlapping
+  cancel-in-progress: false   # a newly dispatched link waits for the running one to finish
 
 env:
-  CHECKS_PER_JOB: ${{ github.event.inputs.checks || '11' }}
   MINUTES_BETWEEN_CHECKS: 30
+  WINDOW_END_UTC: "12:00"
+  LINK_BUDGET_MINUTES: 345    # under the 6 h job limit, leaving room for setup and the final commit
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 358
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -49,26 +56,77 @@ jobs:
           git config user.name "delay-scraper-bot"
           git config user.email "delay-scraper-bot@users.noreply.github.com"
 
-      - name: Check the delay page repeatedly, committing after each check
+      - name: Decide how long this run goes and whether it chains
+        id: plan
         run: |
-          for check_number in $(seq 1 "$CHECKS_PER_JOB"); do
-            echo "=== Check $check_number of $CHECKS_PER_JOB ==="
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event.inputs.chain }}" = "true" ]; then
+            chain=true
+          else
+            chain=false
+          fi
+          now=$(date -u +%s)
+          window_end=$(date -u -d "today $WINDOW_END_UTC" +%s)
+          if [ "$now" -ge "$window_end" ]; then
+            window_end=$(date -u -d "tomorrow $WINDOW_END_UTC" +%s)
+          fi
+          if [ "$chain" = "true" ]; then
+            budget_end=$((now + LINK_BUDGET_MINUTES * 60))
+            stop_at=$window_end
+            if [ "$budget_end" -lt "$window_end" ]; then stop_at=$budget_end; fi
+          else
+            checks="${{ github.event.inputs.checks || '1' }}"
+            stop_at=$((now + (checks - 1) * MINUTES_BETWEEN_CHECKS * 60 + 1))
+          fi
+          echo "chain=$chain"           >> "$GITHUB_OUTPUT"
+          echo "stop_at=$stop_at"       >> "$GITHUB_OUTPUT"
+          echo "window_end=$window_end" >> "$GITHUB_OUTPUT"
+          echo "Chain: $chain. Checking until $(date -u -d @$stop_at +'%H:%M') UTC; window ends $(date -u -d @$window_end +'%Y-%m-%d %H:%M') UTC."
+
+      - name: Check the delay page every 30 minutes, committing after each check
+        run: |
+          check_number=0
+          while [ "$(date -u +%s)" -lt "${{ steps.plan.outputs.stop_at }}" ]; do
+            check_number=$((check_number + 1))
+            echo "=== Check $check_number at $(date -u +'%H:%M') UTC ==="
             if python scrape_delays.py; then
               git add -A data
               if git diff --cached --quiet; then
                 echo "Nothing new to commit"
               else
-                git commit -m "data: $(date -u +'%Y-%m-%d %H:%M') UTC"
-                git pull --rebase
-                git push
+                git commit -q -m "data: $(date -u +'%Y-%m-%d %H:%M') UTC"
+                git pull -q --rebase
+                git push -q
               fi
             else
               echo "::warning::Check $check_number failed; continuing with the next one"
             fi
-            if [ "$check_number" -lt "$CHECKS_PER_JOB" ]; then
-              sleep $((MINUTES_BETWEEN_CHECKS * 60))
+            next_check=$(( $(date -u +%s) + MINUTES_BETWEEN_CHECKS * 60 ))
+            if [ "$next_check" -ge "${{ steps.plan.outputs.stop_at }}" ]; then
+              break
             fi
+            sleep $((MINUTES_BETWEEN_CHECKS * 60))
           done
+
+      - name: Dispatch the next link of the chain
+        if: steps.plan.outputs.chain == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          now=$(date -u +%s)
+          remaining=$(( ${{ steps.plan.outputs.window_end }} - now ))
+          if [ "$remaining" -lt 600 ]; then
+            echo "Window end reached; chain stops here."
+            exit 0
+          fi
+          other_runs=$(gh run list --workflow scrape.yml --status queued --json databaseId --jq 'length')
+          other_runs=$((other_runs + $(gh run list --workflow scrape.yml --status in_progress --json databaseId \
+                        --jq '[.[] | select(.databaseId != ${{ github.run_id }})] | length')))
+          if [ "$other_runs" -gt 0 ]; then
+            echo "Another run is already queued or in progress; not dispatching a duplicate."
+            exit 0
+          fi
+          gh workflow run scrape.yml -f chain=true -f checks=1
+          echo "Dispatched the next link ($((remaining / 60)) minutes of the window remain)."
 
       - name: Upload last fetched page for debugging (only when the job failed)
         if: failure()
